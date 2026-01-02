@@ -1,0 +1,70 @@
+services:
+  minio:
+    image: minio/minio:latest
+    container_name: lake_minio
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    environment:
+      MINIO_ROOT_USER: admin
+      MINIO_ROOT_PASSWORD: password123
+    command: server /data --console-address ":9001"
+    volumes:
+      - minio_data:/data
+    networks:
+      - data_net
+
+  db:
+    image: postgres:15-alpine
+    container_name: warehouse_db
+    environment:
+      POSTGRES_USER: thaya
+      POSTGRES_PASSWORD: thayapassword
+      POSTGRES_DB: food_bi
+    ports:
+      - "5432:5432"
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+      - ./sql_init:/docker-entrypoint-initdb.d
+    networks:
+      - data_net
+
+  etl:
+    build: ./etl
+    container_name: etl_engine
+    depends_on:
+      - db
+      - minio
+    environment:
+      DATABASE_URL: postgresql://thaya:thayapassword@db:5432/food_bi
+      MINIO_ENDPOINT: minio:9000
+      MINIO_ACCESS_KEY: admin
+      MINIO_SECRET_KEY: password123
+      OPENWEATHER_KEY: "40ac11317244a69c30bc93070c55d566"
+    volumes:
+      - ./data_source:/app/data_source
+    restart: always
+    networks:
+      - data_net
+
+  dashboard:
+    build: ./dashboard
+    container_name: bi_frontend
+    ports:
+      - "8501:8501"
+    depends_on:
+      - db
+    environment:
+      DATABASE_URL: postgresql://thaya:thayapassword@db:5432/food_bi
+      TZ: Asia/Makassar
+    volumes:
+      - ./data_source:/app/data_source
+    networks:
+      - data_net
+
+networks:
+  data_net:
+
+volumes:
+  minio_data:
+  pg_data:
