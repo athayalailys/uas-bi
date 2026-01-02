@@ -1,0 +1,8 @@
+pandas
+sqlalchemy
+psycopg2-binary
+minio
+requests
+beautifulsoup4
+lxml
+pytz
